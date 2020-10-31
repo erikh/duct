@@ -12,6 +12,7 @@ import (
 	dc "github.com/fsouza/go-dockerclient"
 )
 
+// Container is the description of a single container
 type Container struct {
 	Env          []string
 	PostCommands [][]string // run in container image after the command is called
