@@ -2,6 +2,7 @@ package duct
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 )
@@ -71,10 +72,25 @@ func TestBasic(t *testing.T) {
 }
 
 func TestNetwork(t *testing.T) {
+	b := Builder{
+		"nc": {
+			Dockerfile: "testdata/Dockerfile.nc",
+			Context:    ".",
+		},
+	}
+
+	if err := b.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
 	c := New(Manifest{
 		"target": {
-			Command: []string{"sleep", "infinity"},
-			Image:   "debian:latest",
+			Command:    []string{"nc", "-l", "-p", "6000"},
+			Image:      "nc",
+			LocalImage: true,
+			PortForwards: map[int]int{
+				6000: 6000,
+			},
 		},
 		"pinger": {
 			Command:      []string{"sleep", "infinity"},
@@ -92,4 +108,10 @@ func TestNetwork(t *testing.T) {
 	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+
+	conn, err := net.Dial("tcp", "localhost:6000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
 }

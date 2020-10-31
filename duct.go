@@ -3,6 +3,7 @@ package duct
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ type Container struct {
 	BindMounts   map[string]string
 	LocalImage   bool
 	BootWait     time.Duration
+	PortForwards map[int]int
 
 	id string
 }
@@ -88,22 +90,36 @@ func (c *Composer) Launch(ctx context.Context) error {
 			})
 		}
 
+		exposed := map[dc.Port]struct{}{}
+		bindings := map[dc.Port][]dc.PortBinding{}
+
+		for from, to := range cont.PortForwards {
+			port := dc.Port(fmt.Sprintf("%d/tcp", to))
+			exposed[port] = struct{}{}
+			bindings[port] = []dc.PortBinding{{
+				HostIP:   "0.0.0.0",
+				HostPort: fmt.Sprintf("%d", from),
+			}}
+		}
+
 		log.Printf("Creating container: [%s]", name)
 		ctr, err := client.CreateContainer(dc.CreateContainerOptions{
 			Name: name,
 			Config: &dc.Config{
-				Hostname:   name,
-				Image:      cont.Image,
-				Env:        cont.Env,
-				Cmd:        cont.Command,
-				Entrypoint: cont.Entrypoint,
+				Hostname:     name,
+				Image:        cont.Image,
+				Env:          cont.Env,
+				Cmd:          cont.Command,
+				Entrypoint:   cont.Entrypoint,
+				ExposedPorts: exposed,
 			},
 			HostConfig: &dc.HostConfig{
-				Mounts: mounts,
+				Mounts:       mounts,
+				PortBindings: bindings,
 			},
 			NetworkingConfig: &dc.NetworkingConfig{
 				EndpointsConfig: map[string]*dc.EndpointConfig{
-					name: &dc.EndpointConfig{
+					name: {
 						NetworkID: net.ID,
 						Aliases:   []string{name},
 					},
