@@ -24,6 +24,7 @@ type Container struct {
 	BindMounts   map[string]string
 	LocalImage   bool
 	BootWait     time.Duration
+	AliveFunc    func(ctx context.Context) error
 	PortForwards map[int]int
 
 	id string
@@ -146,6 +147,15 @@ func (c *Composer) Launch(ctx context.Context) error {
 		if cont.BootWait != 0 {
 			log.Printf("Sleeping for %v (requested by %q bootWait parameter)", cont.BootWait, cont.Name)
 			time.Sleep(cont.BootWait)
+		}
+
+		if cont.AliveFunc != nil {
+			log.Printf("Running aliveFunc for %v", cont.Name)
+			if err := cont.AliveFunc(ctx); err != nil {
+				c.Teardown(ctx)
+				return err
+			}
+			log.Printf("AliveFunc for %v completed", cont.Name)
 		}
 
 		for _, command := range cont.PostCommands {

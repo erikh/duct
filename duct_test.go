@@ -2,6 +2,7 @@ package duct
 
 import (
 	"context"
+	"log"
 	"net"
 	"testing"
 	"time"
@@ -106,7 +107,7 @@ func TestNetwork(t *testing.T) {
 	c := New(Manifest{
 		{
 			Name:       "target",
-			Command:    []string{"nc", "-l", "-p", "6000"},
+			Command:    []string{"nc", "-k", "-l", "-p", "6000"},
 			Image:      "nc",
 			LocalImage: true,
 			PortForwards: map[int]int{
@@ -136,4 +137,51 @@ func TestNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn.Close()
+}
+
+func TestAliveFunc(t *testing.T) {
+	b := Builder{
+		"nc": {
+			Dockerfile: "testdata/Dockerfile.nc",
+			Context:    ".",
+		},
+	}
+
+	if err := b.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New(Manifest{
+		{
+			Name:       "target",
+			Command:    []string{"nc", "-k", "-l", "-p", "6000"},
+			Image:      "nc",
+			LocalImage: true,
+			AliveFunc: func(ctx context.Context) error {
+				for {
+					conn, err := net.Dial("tcp", "localhost:6000")
+					if err != nil {
+						log.Printf("Error while dialing container: %v", err)
+						time.Sleep(100 * time.Millisecond)
+						continue
+					}
+					conn.Close()
+					return nil
+				}
+			},
+			PortForwards: map[int]int{
+				6000: 6000,
+			},
+		},
+	}, "duct-test-network")
+
+	t.Cleanup(func() {
+		if err := c.Teardown(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 }
