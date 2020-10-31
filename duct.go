@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	dc "github.com/fsouza/go-dockerclient"
 )
@@ -15,6 +16,7 @@ type Container struct {
 	Entrypoint []string
 	Image      string
 	LocalImage bool
+	BootWait   time.Duration
 
 	id string
 }
@@ -72,6 +74,10 @@ func (c *Composer) Launch(ctx context.Context) error {
 		if err := client.StartContainerWithContext(cont.id, nil, ctx); err != nil {
 			c.Teardown(ctx)
 			return err
+		}
+
+		if cont.BootWait != 0 {
+			time.Sleep(cont.BootWait)
 		}
 	}
 
