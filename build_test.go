@@ -11,6 +11,9 @@ func TestBuild(t *testing.T) {
 			Dockerfile: "testdata/Dockerfile.test",
 			Context:    ".",
 		},
+		"test-image2": {
+			Dockerfile: "testdata/Dockerfile.test",
+		},
 	}
 
 	if err := b.Run(context.Background()); err != nil {

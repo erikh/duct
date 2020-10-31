@@ -24,10 +24,15 @@ func (bc Builder) Run(ctx context.Context) error {
 	}
 
 	for name, build := range bc {
+		dir := build.Context
+		if dir == "" {
+			dir = "."
+		}
+
 		err := client.BuildImage(dc.BuildImageOptions{
 			Context:      ctx,
 			Name:         name,
-			ContextDir:   build.Context,
+			ContextDir:   dir,
 			Dockerfile:   build.Dockerfile,
 			OutputStream: os.Stderr,
 		})
