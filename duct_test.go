@@ -6,6 +6,8 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	dc "github.com/fsouza/go-dockerclient"
 )
 
 func TestBasic(t *testing.T) {
@@ -157,7 +159,7 @@ func TestAliveFunc(t *testing.T) {
 			Command:    []string{"nc", "-k", "-l", "-p", "6000"},
 			Image:      "nc",
 			LocalImage: true,
-			AliveFunc: func(ctx context.Context) error {
+			AliveFunc: func(ctx context.Context, client *dc.Client) error {
 				for {
 					conn, err := net.Dial("tcp", "localhost:6000")
 					if err != nil {

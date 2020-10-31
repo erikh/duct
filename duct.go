@@ -24,7 +24,7 @@ type Container struct {
 	BindMounts   map[string]string
 	LocalImage   bool
 	BootWait     time.Duration
-	AliveFunc    func(ctx context.Context) error
+	AliveFunc    func(context.Context, *dc.Client) error
 	PortForwards map[int]int
 
 	id string
@@ -151,7 +151,7 @@ func (c *Composer) Launch(ctx context.Context) error {
 
 		if cont.AliveFunc != nil {
 			log.Printf("Running aliveFunc for %v", cont.Name)
-			if err := cont.AliveFunc(ctx); err != nil {
+			if err := cont.AliveFunc(ctx, client); err != nil {
 				c.Teardown(ctx)
 				return err
 			}
