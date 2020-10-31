@@ -21,7 +21,8 @@ func TestBuild(t *testing.T) {
 	}
 
 	c := New(Manifest{
-		"test-image": {
+		{
+			Name:       "test-image",
 			Image:      "test-image",
 			LocalImage: true,
 		},

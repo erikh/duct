@@ -9,7 +9,8 @@ import (
 
 func TestBasic(t *testing.T) {
 	c := New(Manifest{
-		"sleep": {
+		{
+			Name:    "sleep",
 			Command: []string{"sleep", "1"},
 			Image:   "debian:latest",
 			PostCommands: [][]string{
@@ -31,7 +32,8 @@ func TestBasic(t *testing.T) {
 	}
 
 	c = New(Manifest{
-		"early-terminator": {
+		{
+			Name:     "early-terminator",
 			Command:  []string{"sleep", "1"},
 			Image:    "debian:latest",
 			BootWait: 2 * time.Second,
@@ -52,7 +54,8 @@ func TestBasic(t *testing.T) {
 	// start it a second time to make sure it was cleaned up, this time it will
 	// succeed to run
 	c = New(Manifest{
-		"early-terminator": {
+		{
+			Name:     "early-terminator",
 			Command:  []string{"sleep", "3"},
 			Image:    "debian:latest",
 			BootWait: 2 * time.Second,
@@ -84,7 +87,8 @@ func TestNetwork(t *testing.T) {
 	}
 
 	c := New(Manifest{
-		"target": {
+		{
+			Name:       "target",
 			Command:    []string{"nc", "-l", "-p", "6000"},
 			Image:      "nc",
 			LocalImage: true,
@@ -92,7 +96,8 @@ func TestNetwork(t *testing.T) {
 				6000: 6000,
 			},
 		},
-		"pinger": {
+		{
+			Name:         "pinger",
 			Command:      []string{"sleep", "infinity"},
 			PostCommands: [][]string{{"ping", "-c", "1", "target"}},
 			Image:        "debian:latest",

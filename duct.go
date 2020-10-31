@@ -15,6 +15,7 @@ import (
 
 // Container is the description of a single container
 type Container struct {
+	Name         string
 	Env          []string
 	PostCommands [][]string // run in container image after the command is called
 	Command      []string
@@ -29,7 +30,7 @@ type Container struct {
 }
 
 // Manifest is the mapping of name -> container
-type Manifest map[string]*Container
+type Manifest []*Container
 
 // Composer is the interface to launching manifests
 type Composer struct {
@@ -63,7 +64,7 @@ func (c *Composer) Launch(ctx context.Context) error {
 	c.netID = net.ID
 	c.launched = true
 
-	for name, cont := range c.manifest {
+	for _, cont := range c.manifest {
 		if !cont.LocalImage {
 			log.Printf("Pulling docker image: [%s]", cont.Image)
 
@@ -102,11 +103,11 @@ func (c *Composer) Launch(ctx context.Context) error {
 			}}
 		}
 
-		log.Printf("Creating container: [%s]", name)
+		log.Printf("Creating container: [%s]", cont.Name)
 		ctr, err := client.CreateContainer(dc.CreateContainerOptions{
-			Name: name,
+			Name: cont.Name,
 			Config: &dc.Config{
-				Hostname:     name,
+				Hostname:     cont.Name,
 				Image:        cont.Image,
 				Env:          cont.Env,
 				Cmd:          cont.Command,
@@ -119,9 +120,9 @@ func (c *Composer) Launch(ctx context.Context) error {
 			},
 			NetworkingConfig: &dc.NetworkingConfig{
 				EndpointsConfig: map[string]*dc.EndpointConfig{
-					name: {
+					cont.Name: {
 						NetworkID: net.ID,
-						Aliases:   []string{name},
+						Aliases:   []string{cont.Name},
 					},
 				},
 			},
@@ -135,20 +136,20 @@ func (c *Composer) Launch(ctx context.Context) error {
 		cont.id = ctr.ID
 	}
 
-	for name, cont := range c.manifest {
-		log.Printf("Starting container: [%s]", name)
+	for _, cont := range c.manifest {
+		log.Printf("Starting container: [%s]", cont.Name)
 		if err := client.StartContainerWithContext(cont.id, nil, ctx); err != nil {
 			c.Teardown(ctx)
 			return err
 		}
 
 		if cont.BootWait != 0 {
-			log.Printf("Sleeping for %v (requested by %q bootWait parameter)", cont.BootWait, name)
+			log.Printf("Sleeping for %v (requested by %q bootWait parameter)", cont.BootWait, cont.Name)
 			time.Sleep(cont.BootWait)
 		}
 
 		for _, command := range cont.PostCommands {
-			log.Printf("Running post-command [%s] in container: [%s]", strings.Join(command, " "), name)
+			log.Printf("Running post-command [%s] in container: [%s]", strings.Join(command, " "), cont.Name)
 			exec, err := client.CreateExec(dc.CreateExecOptions{
 				Context:      ctx,
 				Container:    cont.id,
@@ -189,9 +190,9 @@ func (c *Composer) Teardown(ctx context.Context) error {
 
 	var errs bool
 
-	for name, cont := range c.manifest {
+	for _, cont := range c.manifest {
 		if cont.id != "" {
-			log.Printf("Killing container: [%s]", name)
+			log.Printf("Killing container: [%s]", cont.Name)
 			err := client.KillContainer(dc.KillContainerOptions{
 				ID:      cont.id,
 				Signal:  dc.SIGKILL,
@@ -202,13 +203,13 @@ func (c *Composer) Teardown(ctx context.Context) error {
 				errs = true
 			}
 
-			log.Printf("Removing container: [%s]", name)
+			log.Printf("Removing container: [%s]", cont.Name)
 			if err := client.RemoveContainer(dc.RemoveContainerOptions{ID: cont.id, Force: true, Context: ctx}); err != nil {
 				log.Println(err)
 				errs = true
 			}
 		} else {
-			log.Printf("Skipping unstarted container: [%s]", name)
+			log.Printf("Skipping unstarted container: [%s]", cont.Name)
 		}
 	}
 
