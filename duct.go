@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ type Container struct {
 	Command      []string
 	Entrypoint   []string
 	Image        string
+	BindMounts   map[string]string
 	LocalImage   bool
 	BootWait     time.Duration
 
@@ -55,6 +57,23 @@ func (c *Composer) Launch(ctx context.Context) error {
 			}
 		}
 
+		mounts := []dc.HostMount{}
+		for host, target := range cont.BindMounts {
+			if !filepath.IsAbs(host) {
+				host, err = filepath.Abs(host)
+				if err != nil {
+					c.Teardown(ctx)
+					return err
+				}
+			}
+
+			mounts = append(mounts, dc.HostMount{
+				Source: host,
+				Type:   "bind",
+				Target: target,
+			})
+		}
+
 		log.Printf("Creating container: [%s]", name)
 		ctr, err := client.CreateContainer(dc.CreateContainerOptions{
 			Name: name,
@@ -64,6 +83,9 @@ func (c *Composer) Launch(ctx context.Context) error {
 				Env:        cont.Env,
 				Cmd:        cont.Command,
 				Entrypoint: cont.Entrypoint,
+			},
+			HostConfig: &dc.HostConfig{
+				Mounts: mounts,
 			},
 			Context: ctx,
 		})

@@ -8,9 +8,15 @@ import (
 func TestBasic(t *testing.T) {
 	c := New(Manifest{
 		"sleep": {
-			Command:      []string{"sleep", "1"},
-			Image:        "alpine:latest",
-			PostCommands: [][]string{{"echo", "from post-command"}},
+			Command: []string{"sleep", "1"},
+			Image:   "alpine:latest",
+			PostCommands: [][]string{
+				{"echo", "from post-command"},
+				{"head", "-1", "/duct.go"},
+			},
+			BindMounts: map[string]string{
+				"duct.go": "/duct.go",
+			},
 		},
 	})
 
