@@ -3,7 +3,6 @@ package duct
 import (
 	"context"
 	"testing"
-	"time"
 )
 
 func TestBuild(t *testing.T) {
@@ -25,11 +24,11 @@ func TestBuild(t *testing.T) {
 		},
 	})
 
-	if err := c.Launch(time.Minute); err != nil {
+	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := c.Teardown(time.Minute); err != nil {
+	if err := c.Teardown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

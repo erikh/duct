@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"time"
 
 	dc "github.com/fsouza/go-dockerclient"
 )
@@ -35,10 +34,7 @@ func New(manifest Manifest) *Composer {
 }
 
 // Launch launches the manifest
-func (c *Composer) Launch(timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
+func (c *Composer) Launch(ctx context.Context) error {
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
 		return err
@@ -47,7 +43,7 @@ func (c *Composer) Launch(timeout time.Duration) error {
 	for name, cont := range c.manifest {
 		if !cont.LocalImage {
 			if err := client.PullImage(dc.PullImageOptions{Repository: cont.Image}, dc.AuthConfiguration{}); err != nil {
-				c.Teardown(timeout)
+				c.Teardown(ctx)
 				return err
 			}
 		}
@@ -64,7 +60,7 @@ func (c *Composer) Launch(timeout time.Duration) error {
 			Context: ctx,
 		})
 		if err != nil {
-			c.Teardown(timeout)
+			c.Teardown(ctx)
 			return err
 		}
 
@@ -74,7 +70,7 @@ func (c *Composer) Launch(timeout time.Duration) error {
 
 	for _, cont := range c.manifest {
 		if err := client.StartContainerWithContext(cont.id, nil, ctx); err != nil {
-			c.Teardown(timeout)
+			c.Teardown(ctx)
 			return err
 		}
 	}
@@ -83,13 +79,10 @@ func (c *Composer) Launch(timeout time.Duration) error {
 }
 
 // Teardown kills the container processes in the manifest and removes their containers
-func (c *Composer) Teardown(timeout time.Duration) error {
+func (c *Composer) Teardown(ctx context.Context) error {
 	if !c.launched {
 		return errors.New("containers have not launched")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
