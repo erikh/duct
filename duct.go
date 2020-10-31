@@ -116,5 +116,6 @@ func (c *Composer) Teardown(ctx context.Context) error {
 		return errors.New("there were errors (see log)")
 	}
 
+	c.launched = false
 	return nil
 }
