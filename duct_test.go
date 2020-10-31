@@ -155,11 +155,9 @@ func TestAliveFunc(t *testing.T) {
 
 	c := New(Manifest{
 		{
-			Name:       "target",
-			Command:    []string{"nc", "-k", "-l", "-p", "6000"},
-			Image:      "nc",
-			LocalImage: true,
-			AliveFunc: func(ctx context.Context, client *dc.Client) error {
+			Name:  "target",
+			Image: "nginx:latest",
+			AliveFunc: func(ctx context.Context, client *dc.Client, id string) error {
 				for {
 					conn, err := net.Dial("tcp", "localhost:6000")
 					if err != nil {
@@ -172,7 +170,28 @@ func TestAliveFunc(t *testing.T) {
 				}
 			},
 			PortForwards: map[int]int{
-				6000: 6000,
+				6000: 80,
+			},
+		},
+		{
+			Name:       "target-no-port",
+			Command:    []string{"nc", "-k", "-l", "-p", "6000"},
+			Image:      "nc",
+			LocalImage: true,
+			AliveFunc: func(ctx context.Context, client *dc.Client, id string) error {
+				for {
+					container, err := client.InspectContainer(id)
+					if err != nil {
+						log.Printf("Error inspecting container: %v", err)
+						continue
+					}
+
+					if container.State.Running {
+						return nil
+					}
+
+					log.Printf("Container %v is not running yet", id)
+				}
 			},
 		},
 	}, "duct-test-network")
