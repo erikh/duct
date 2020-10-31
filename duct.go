@@ -15,6 +15,7 @@ type Container struct {
 	Command    []string
 	Entrypoint []string
 	Image      string
+	LocalImage bool
 
 	id string
 }
@@ -44,10 +45,13 @@ func (c *Composer) Launch(timeout time.Duration) error {
 	}
 
 	for name, cont := range c.manifest {
-		if err := client.PullImage(dc.PullImageOptions{Repository: cont.Image}, dc.AuthConfiguration{}); err != nil {
-			c.Teardown(timeout)
-			return err
+		if !cont.LocalImage {
+			if err := client.PullImage(dc.PullImageOptions{Repository: cont.Image}, dc.AuthConfiguration{}); err != nil {
+				c.Teardown(timeout)
+				return err
+			}
 		}
+
 		ctr, err := client.CreateContainer(dc.CreateContainerOptions{
 			Name: name,
 			Config: &dc.Config{
