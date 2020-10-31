@@ -163,7 +163,6 @@ func (c *Composer) Teardown(ctx context.Context) error {
 			if err != nil {
 				log.Println(err)
 				errs = true
-				continue
 			}
 
 			log.Printf("Removing container: [%s]", name)
