@@ -25,7 +25,7 @@ func TestBuild(t *testing.T) {
 			Image:      "test-image",
 			LocalImage: true,
 		},
-	})
+	}, "duct-test-network")
 
 	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)

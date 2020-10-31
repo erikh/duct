@@ -12,7 +12,6 @@ import (
 	dc "github.com/fsouza/go-dockerclient"
 )
 
-// Container describes a container
 type Container struct {
 	Env          []string
 	PostCommands [][]string // run in container image after the command is called
@@ -32,12 +31,14 @@ type Manifest map[string]*Container
 // Composer is the interface to launching manifests
 type Composer struct {
 	manifest Manifest
+	network  string
+	netID    string
 	launched bool
 }
 
 // New constructs a new Composer from a manifest
-func New(manifest Manifest) *Composer {
-	return &Composer{manifest: manifest}
+func New(manifest Manifest, network string) *Composer {
+	return &Composer{manifest: manifest, network: network}
 }
 
 // Launch launches the manifest
@@ -46,6 +47,18 @@ func (c *Composer) Launch(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	net, err := client.CreateNetwork(dc.CreateNetworkOptions{
+		Name:    c.network,
+		Driver:  "bridge",
+		Context: ctx,
+	})
+	if err != nil {
+		return err
+	}
+
+	c.netID = net.ID
+	c.launched = true
 
 	for name, cont := range c.manifest {
 		if !cont.LocalImage {
@@ -87,6 +100,14 @@ func (c *Composer) Launch(ctx context.Context) error {
 			HostConfig: &dc.HostConfig{
 				Mounts: mounts,
 			},
+			NetworkingConfig: &dc.NetworkingConfig{
+				EndpointsConfig: map[string]*dc.EndpointConfig{
+					name: &dc.EndpointConfig{
+						NetworkID: net.ID,
+						Aliases:   []string{name},
+					},
+				},
+			},
 			Context: ctx,
 		})
 		if err != nil {
@@ -94,7 +115,6 @@ func (c *Composer) Launch(ctx context.Context) error {
 			return err
 		}
 
-		c.launched = true
 		cont.id = ctr.ID
 	}
 
@@ -169,11 +189,15 @@ func (c *Composer) Teardown(ctx context.Context) error {
 			if err := client.RemoveContainer(dc.RemoveContainerOptions{ID: cont.id, Force: true, Context: ctx}); err != nil {
 				log.Println(err)
 				errs = true
-				continue
 			}
 		} else {
 			log.Printf("Skipping unstarted container: [%s]", name)
 		}
+	}
+
+	if err := client.RemoveNetwork(c.netID); err != nil {
+		log.Println(err)
+		errs = true
 	}
 
 	if errs {
