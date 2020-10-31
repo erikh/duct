@@ -72,6 +72,23 @@ func TestBasic(t *testing.T) {
 	if err := c.Teardown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+
+	c = New(Manifest{
+		{
+			Name:         "post-command-exit",
+			Command:      []string{"sleep", "infinity"},
+			Image:        "debian:latest",
+			PostCommands: [][]string{{"false"}},
+		},
+	}, "duct-test-network")
+
+	t.Cleanup(func() {
+		c.Teardown(context.Background())
+	})
+
+	if err := c.Launch(context.Background()); err == nil {
+		t.Fatal("did not error running bad postcommand")
+	}
 }
 
 func TestNetwork(t *testing.T) {

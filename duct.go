@@ -171,6 +171,16 @@ func (c *Composer) Launch(ctx context.Context) error {
 				c.Teardown(ctx)
 				return err
 			}
+			ins, err := client.InspectExec(exec.ID)
+			if err != nil {
+				c.Teardown(ctx)
+				return err
+			}
+
+			if ins.ExitCode != 0 {
+				c.Teardown(ctx)
+				return fmt.Errorf("[%s] invalid exit code from postcommand: [%s]", cont.Name, strings.Join(command, " "))
+			}
 		}
 	}
 
