@@ -8,8 +8,9 @@ import (
 func TestBasic(t *testing.T) {
 	c := New(Manifest{
 		"sleep": {
-			Command: []string{"sleep", "1"},
-			Image:   "alpine:latest",
+			Command:      []string{"sleep", "1"},
+			Image:        "alpine:latest",
+			PostCommands: [][]string{{"echo", "from post-command"}},
 		},
 	})
 

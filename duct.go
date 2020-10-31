@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	dc "github.com/fsouza/go-dockerclient"
@@ -11,12 +13,13 @@ import (
 
 // Container describes a container
 type Container struct {
-	Env        []string
-	Command    []string
-	Entrypoint []string
-	Image      string
-	LocalImage bool
-	BootWait   time.Duration
+	Env          []string
+	PostCommands [][]string // run in container image after the command is called
+	Command      []string
+	Entrypoint   []string
+	Image        string
+	LocalImage   bool
+	BootWait     time.Duration
 
 	id string
 }
@@ -83,6 +86,31 @@ func (c *Composer) Launch(ctx context.Context) error {
 		if cont.BootWait != 0 {
 			log.Printf("Sleeping for %v (requested by %q bootWait parameter)", cont.BootWait, name)
 			time.Sleep(cont.BootWait)
+		}
+
+		for _, command := range cont.PostCommands {
+			log.Printf("Running post-command [%s] in container: [%s]", strings.Join(command, " "), name)
+			exec, err := client.CreateExec(dc.CreateExecOptions{
+				Context:      ctx,
+				Container:    cont.id,
+				Cmd:          command,
+				AttachStderr: true,
+				AttachStdout: true,
+			})
+			if err != nil {
+				c.Teardown(ctx)
+				return err
+			}
+
+			err = client.StartExec(exec.ID, dc.StartExecOptions{
+				OutputStream: os.Stdout,
+				ErrorStream:  os.Stderr,
+				Context:      ctx,
+			})
+			if err != nil {
+				c.Teardown(ctx)
+				return err
+			}
 		}
 	}
 
