@@ -142,17 +142,6 @@ func TestNetwork(t *testing.T) {
 }
 
 func TestAliveFunc(t *testing.T) {
-	b := Builder{
-		"nc": {
-			Dockerfile: "testdata/Dockerfile.nc",
-			Context:    ".",
-		},
-	}
-
-	if err := b.Run(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-
 	c := New(Manifest{
 		{
 			Name:  "target",
@@ -174,10 +163,9 @@ func TestAliveFunc(t *testing.T) {
 			},
 		},
 		{
-			Name:       "target-no-port",
-			Command:    []string{"nc", "-k", "-l", "-p", "6000"},
-			Image:      "nc",
-			LocalImage: true,
+			Name:    "target-no-port",
+			Command: []string{"sleep", "infinity"},
+			Image:   "debian:latest",
 			AliveFunc: func(ctx context.Context, client *dc.Client, id string) error {
 				for {
 					container, err := client.InspectContainer(id)
