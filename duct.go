@@ -44,12 +44,15 @@ func (c *Composer) Launch(ctx context.Context) error {
 
 	for name, cont := range c.manifest {
 		if !cont.LocalImage {
+			log.Printf("Pulling docker image: [%s]", cont.Image)
+
 			if err := client.PullImage(dc.PullImageOptions{Repository: cont.Image}, dc.AuthConfiguration{}); err != nil {
 				c.Teardown(ctx)
 				return err
 			}
 		}
 
+		log.Printf("Creating container: [%s]", name)
 		ctr, err := client.CreateContainer(dc.CreateContainerOptions{
 			Name: name,
 			Config: &dc.Config{
@@ -70,13 +73,15 @@ func (c *Composer) Launch(ctx context.Context) error {
 		cont.id = ctr.ID
 	}
 
-	for _, cont := range c.manifest {
+	for name, cont := range c.manifest {
+		log.Printf("Starting container: [%s]", name)
 		if err := client.StartContainerWithContext(cont.id, nil, ctx); err != nil {
 			c.Teardown(ctx)
 			return err
 		}
 
 		if cont.BootWait != 0 {
+			log.Printf("Sleeping for %v (requested by %q bootWait parameter)", cont.BootWait, name)
 			time.Sleep(cont.BootWait)
 		}
 	}
@@ -97,8 +102,9 @@ func (c *Composer) Teardown(ctx context.Context) error {
 
 	var errs bool
 
-	for _, cont := range c.manifest {
+	for name, cont := range c.manifest {
 		if cont.id != "" {
+			log.Printf("Killing container: [%s]", name)
 			err := client.KillContainer(dc.KillContainerOptions{
 				ID:      cont.id,
 				Signal:  dc.SIGKILL,
@@ -110,11 +116,14 @@ func (c *Composer) Teardown(ctx context.Context) error {
 				continue
 			}
 
+			log.Printf("Removing container: [%s]", name)
 			if err := client.RemoveContainer(dc.RemoveContainerOptions{ID: cont.id, Force: true, Context: ctx}); err != nil {
 				log.Println(err)
 				errs = true
 				continue
 			}
+		} else {
+			log.Printf("Skipping unstarted container: [%s]", name)
 		}
 	}
 

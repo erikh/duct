@@ -2,6 +2,7 @@ package duct
 
 import (
 	"context"
+	"log"
 	"os"
 
 	dc "github.com/fsouza/go-dockerclient"
@@ -29,6 +30,7 @@ func (bc Builder) Run(ctx context.Context) error {
 			dir = "."
 		}
 
+		log.Printf("Building image: [%s]", name)
 		err := client.BuildImage(dc.BuildImageOptions{
 			Context:      ctx,
 			Name:         name,
