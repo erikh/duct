@@ -4,10 +4,12 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	dc "github.com/fsouza/go-dockerclient"
+	"golang.org/x/sys/unix"
 )
 
 func TestBasic(t *testing.T) {
@@ -192,5 +194,28 @@ func TestAliveFunc(t *testing.T) {
 
 	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSignals(t *testing.T) {
+	c := New(Manifest{
+		{
+			Name:  "target",
+			Image: "nginx:latest",
+		},
+	}, "duct-test-network")
+
+	c.HandleSignals(false)
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	unix.Kill(os.Getpid(), unix.SIGINT)
+
+	time.Sleep(time.Second)
+
+	if err := c.Teardown(context.Background()); err == nil {
+		t.Fatal("signal handling didn't work")
 	}
 }

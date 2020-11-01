@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	dc "github.com/fsouza/go-dockerclient"
+	"golang.org/x/sys/unix"
 )
 
 // Container is the description of a single container
@@ -44,6 +47,28 @@ type Composer struct {
 // New constructs a new Composer from a manifest
 func New(manifest Manifest, network string) *Composer {
 	return &Composer{manifest: manifest, network: network}
+}
+
+// HandleSignals handles SIGINT and SIGTERM to ensure that containers get
+// cleaned up. If t is passed, it will trigger t.Fatal() when signalled. It is
+// expected that no other signal handler will be installed afterwards. If the
+// forward argument is true, it will forward the signal back to its own process
+// after deregistering itself as the signal handler, allowing your test suite
+// to exit gracefully. Disable it to stay out of your way.
+func (c *Composer) HandleSignals(forward bool) {
+	sigChan := make(chan os.Signal, 2)
+
+	go func() {
+		sig := <-sigChan
+		log.Println("Signalled; will terminate containers now")
+		c.Teardown(context.Background())
+		signal.Stop(sigChan) // stop letting us get notified
+		if forward {
+			unix.Kill(os.Getpid(), sig.(syscall.Signal))
+		}
+	}()
+
+	signal.Notify(sigChan, unix.SIGINT, unix.SIGTERM)
 }
 
 // Launch launches the manifest
