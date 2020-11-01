@@ -230,6 +230,8 @@ func TestSignals(t *testing.T) {
 		t.Fatal("aborting.")
 	}
 
+	c.HandleSignals(false)
+
 	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
 	}
