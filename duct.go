@@ -49,11 +49,11 @@ func New(manifest Manifest, network string) *Composer {
 }
 
 // HandleSignals handles SIGINT and SIGTERM to ensure that containers get
-// cleaned up. If t is passed, it will trigger t.Fatal() when signalled. It is
-// expected that no other signal handler will be installed afterwards. If the
-// forward argument is true, it will forward the signal back to its own process
-// after deregistering itself as the signal handler, allowing your test suite
-// to exit gracefully. Disable it to stay out of your way.
+// cleaned up. It is expected that no other signal handler will be installed
+// afterwards. If the forward argument is true, it will forward the signal back
+// to its own process after deregistering itself as the signal handler,
+// allowing your test suite to exit gracefully. Set it to false to stay out of
+// your way.
 func (c *Composer) HandleSignals(forward bool) {
 	sigChan := make(chan os.Signal, 2)
 
