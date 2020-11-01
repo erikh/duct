@@ -4,6 +4,8 @@ duct uses structs similar in a fashion to the way `docker-compose` uses YAML to
 launch your containers. This is so much faster and easier to control; why shell
 out to `docker-compose` at all?
 
+Check out the [godoc](https://pkg.go.dev/code.hollensbe.org/erikh/duct).
+
 ## Example
 
 ### Running Containers
