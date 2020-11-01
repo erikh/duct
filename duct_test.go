@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -198,6 +199,8 @@ func TestAliveFunc(t *testing.T) {
 }
 
 func TestSignals(t *testing.T) {
+	count := runtime.NumGoroutine()
+
 	c := New(Manifest{
 		{
 			Name:  "target",
@@ -217,6 +220,32 @@ func TestSignals(t *testing.T) {
 
 	if err := c.Teardown(context.Background()); err == nil {
 		t.Fatal("signal handling didn't work")
+	}
+
+	if runtime.NumGoroutine() > count+1 {
+		t.Log("goroutine count increased: ", runtime.NumGoroutine(), count+1)
+		buf := make([]byte, 1024*1024)
+		runtime.Stack(buf, true)
+		t.Log(string(buf))
+		t.Fatal("aborting.")
+	}
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Teardown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	if runtime.NumGoroutine() > count+1 {
+		t.Log("goroutine count increased: ", runtime.NumGoroutine(), count+1)
+		buf := make([]byte, 1024*1024)
+		runtime.Stack(buf, true)
+		t.Log(string(buf))
+		t.Fatal("aborting.")
 	}
 }
 

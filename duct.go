@@ -71,9 +71,10 @@ type Manifest []*Container
 // Composer is the interface to launching manifests. This is returned from
 // New()
 type Composer struct {
-	manifest Manifest
-	network  string
-	netID    string
+	manifest  Manifest
+	network   string
+	netID     string
+	sigCancel context.CancelFunc
 }
 
 // New constructs a new Composer from a Manifest. A network name must also be
@@ -90,15 +91,21 @@ func New(manifest Manifest, network string) *Composer {
 // allowing your test suite to exit gracefully. Set it to false to stay out of
 // your way.
 func (c *Composer) HandleSignals(forward bool) {
+	ctx, cancel := context.WithCancel(context.Background())
+	c.sigCancel = cancel
 	sigChan := make(chan os.Signal, 2)
 
 	go func() {
-		sig := <-sigChan
-		log.Println("Signalled; will terminate containers now")
-		c.Teardown(context.Background())
-		signal.Stop(sigChan) // stop letting us get notified
-		if forward {
-			unix.Kill(os.Getpid(), sig.(syscall.Signal))
+		select {
+		case sig := <-sigChan:
+			log.Println("Signalled; will terminate containers now")
+			c.Teardown(context.Background())
+			signal.Stop(sigChan) // stop letting us get notified
+			if forward {
+				unix.Kill(os.Getpid(), sig.(syscall.Signal))
+			}
+		case <-ctx.Done():
+			signal.Stop(sigChan)
 		}
 	}()
 
@@ -260,6 +267,10 @@ func (c *Composer) Launch(ctx context.Context) error {
 // containers. In the event of errors, this will continue to attempt to stop
 // and remove everything before returning. It will log the error to stderr.
 func (c *Composer) Teardown(ctx context.Context) error {
+	if c.sigCancel != nil {
+		c.sigCancel()
+	}
+
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
 		return err
