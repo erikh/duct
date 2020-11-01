@@ -16,34 +16,69 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Container is the description of a single container
+// Container is the description of a single container. Usually several of these
+// are composed in a Manifest and sent to the New() call. Please see the fields
+// below for more information.
 type Container struct {
-	Name         string
-	Env          []string
-	PostCommands [][]string // run in container image after the command is called
-	Command      []string
-	Entrypoint   []string
-	Image        string
-	BindMounts   map[string]string
-	LocalImage   bool
-	BootWait     time.Duration
-	AliveFunc    func(context.Context, *dc.Client, string) error
+	// Name is required; it is the independent name of the container. It maps
+	// directly to the name on the docker installation, so be mindful of
+	// collisions.
+	Name string
+
+	// Env is the array of key=value string pairs in `man 7 environ` fashion.
+	Env []string
+
+	// PostCommands is a series of argvs for running commands after the container
+	// is booted, and after the bootwait is consumed.
+	PostCommands [][]string
+
+	// Command is the command to run as the booted container.
+	Command []string
+
+	// Entrypoint maps directly to Docker's entrypoint.
+	Entrypoint []string
+
+	// Image is the docker image; it uses repository syntax, and will attempt to
+	// pull it unless LocalImage is set true.
+	Image string
+
+	// BindMounts is a map of absolute path -> absolute path for host ->
+	// container bind mounting.
+	BindMounts map[string]string
+
+	// LocalImage indicates this image is not to be pulled.
+	LocalImage bool
+
+	// BootWait is how long to wait after booting the container before moving
+	// forward with PostCommands and other orchestration.
+	BootWait time.Duration
+
+	// AliveFunc is a locally run golang function for testing the availability of
+	// the container. The client is passed in as well as the container ID to
+	// assist with this process.
+	AliveFunc func(context.Context, *dc.Client, string) error
+
+	// PortForwards are a simple mapping of host -> container port mappings that
+	// forward the port on 0.0.0.0 automatically.
 	PortForwards map[int]int
 
-	id string
+	id string // the container id
 }
 
-// Manifest is the mapping of name -> container
+// Manifest is the mapping of name -> container. Passed to New().
 type Manifest []*Container
 
-// Composer is the interface to launching manifests
+// Composer is the interface to launching manifests. This is returned from
+// New()
 type Composer struct {
 	manifest Manifest
 	network  string
 	netID    string
 }
 
-// New constructs a new Composer from a manifest
+// New constructs a new Composer from a Manifest. A network name must also be
+// provided; it will be created and cleaned up when Run and Teardown are
+// called.
 func New(manifest Manifest, network string) *Composer {
 	return &Composer{manifest: manifest, network: network}
 }
@@ -70,7 +105,8 @@ func (c *Composer) HandleSignals(forward bool) {
 	signal.Notify(sigChan, unix.SIGINT, unix.SIGTERM)
 }
 
-// Launch launches the manifest
+// Launch launches the manifest. On error containers are automatically cleaned
+// up.
 func (c *Composer) Launch(ctx context.Context) error {
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
@@ -220,7 +256,9 @@ func (c *Composer) Launch(ctx context.Context) error {
 	return nil
 }
 
-// Teardown kills the container processes in the manifest and removes their containers
+// Teardown kills the container processes in the manifest and removes their
+// containers. In the event of errors, this will continue to attempt to stop
+// and remove everything before returning. It will log the error to stderr.
 func (c *Composer) Teardown(ctx context.Context) error {
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
