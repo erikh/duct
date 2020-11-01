@@ -41,7 +41,6 @@ type Composer struct {
 	manifest Manifest
 	network  string
 	netID    string
-	launched bool
 }
 
 // New constructs a new Composer from a manifest
@@ -88,7 +87,6 @@ func (c *Composer) Launch(ctx context.Context) error {
 	}
 
 	c.netID = net.ID
-	c.launched = true
 
 	for _, cont := range c.manifest {
 		if !cont.LocalImage {
@@ -224,10 +222,6 @@ func (c *Composer) Launch(ctx context.Context) error {
 
 // Teardown kills the container processes in the manifest and removes their containers
 func (c *Composer) Teardown(ctx context.Context) error {
-	if !c.launched {
-		return errors.New("containers have not launched")
-	}
-
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
 		return err
@@ -267,6 +261,5 @@ func (c *Composer) Teardown(ctx context.Context) error {
 		return errors.New("there were errors (see log)")
 	}
 
-	c.launched = false
 	return nil
 }

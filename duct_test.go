@@ -219,3 +219,37 @@ func TestSignals(t *testing.T) {
 		t.Fatal("signal handling didn't work")
 	}
 }
+
+func TestTeardown(t *testing.T) {
+	c := New(Manifest{
+		{
+			Name:    "target",
+			Image:   "debian:latest",
+			Command: []string{"sleep", "infinity"},
+		},
+	}, "duct-test-network")
+
+	c2 := New(Manifest{
+		{
+			Name:    "target",
+			Image:   "debian:latest",
+			Command: []string{"sleep", "infinity"},
+		},
+	}, "duct-test-network")
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c2.Launch(context.Background()); err == nil {
+		t.Fatal("Was able to start a duplicate container")
+	}
+
+	if err := c2.Teardown(context.Background()); err == nil {
+		t.Fatal("auto-teardown on failure did not trigger")
+	}
+
+	if err := c.Teardown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
