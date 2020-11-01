@@ -6,6 +6,8 @@ out to `docker-compose` at all?
 
 ## Example
 
+### Running Containers
+
 Here's how you might launch [Gitea](https://gitea.io) in duct:
 
 ```go
@@ -93,6 +95,45 @@ func TestStartGitea(t *testing.T) {
   }
 
   // do something with gitea
+}
+```
+
+### Builder support
+
+duct has very basic builder and context support. Make sure to use the
+`LocalImage` flag when using these images in your container manifests so they
+don't get pulled. Builds are logged to stderr in a very similar fashion to
+`docker build`.
+
+```go
+b := Builder{
+  "test-image": {
+    Dockerfile: "testdata/Dockerfile.test",
+    Context:    ".",
+  },
+  "test-image2": {
+    Dockerfile: "testdata/Dockerfile.test",
+  },
+}
+
+if err := b.Run(context.Background()); err != nil {
+  t.Fatal(err)
+}
+
+c := New(Manifest{
+  {
+    Name:       "test-image",
+    Image:      "test-image",
+    LocalImage: true,
+  },
+}, "duct-test-network")
+
+if err := c.Launch(context.Background()); err != nil {
+  t.Fatal(err)
+}
+
+if err := c.Teardown(context.Background()); err != nil {
+  t.Fatal(err)
 }
 ```
 
