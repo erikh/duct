@@ -6,7 +6,7 @@ out to `docker-compose` at all?
 
 ## Example
 
-Here's how you might launch Gitea in duct:
+Here's how you might launch [Gitea](https://gitea.io) in duct:
 
 ```go
 package main
