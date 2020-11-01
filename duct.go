@@ -65,7 +65,7 @@ type Container struct {
 	id string // the container id
 }
 
-// Manifest is the mapping of name -> container. Passed to New().
+// Manifest is the containers to run, in order. Passed to New().
 type Manifest []*Container
 
 // Composer is the interface to launching manifests. This is returned from
