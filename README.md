@@ -4,7 +4,7 @@ duct uses structs similar in a fashion to the way `docker-compose` uses YAML to
 launch your containers. This is so much faster and easier to control; why shell
 out to `docker-compose` at all?
 
-Check out the [godoc](https://pkg.go.dev/code.hollensbe.org/erikh/duct).
+Check out the [godoc](https://pkg.go.dev/github.com/erikh/duct).
 
 ## Example
 
@@ -22,7 +22,7 @@ import (
   "testing"
   "time"
 
-  "code.hollensbe.org/erikh/duct"
+  "github.com/erikh/duct"
   dc "github.com/fsouza/go-dockerclient"
 )
 
@@ -170,7 +170,7 @@ New user 'erikh' has been successfully created!
 2020/10/31 23:38:44 Removing container: [gitea]
 --- PASS: TestStartGitea (9.36s)
 PASS
-ok      code.hollensbe.org/erikh/tmp    9.364s
+ok      github.com/erikh/tmp    9.364s
 ```
 
 ## Roadmap:

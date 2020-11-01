@@ -1,4 +1,4 @@
-module code.hollensbe.org/erikh/duct
+module github.com/erikh/duct
 
 go 1.15
 
