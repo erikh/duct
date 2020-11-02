@@ -72,7 +72,7 @@ type Manifest []*Container
 // New()
 type Composer struct {
 	manifest  Manifest
-	network   string
+	options   Options
 	netID     string
 	sigCancel context.CancelFunc
 }
@@ -80,8 +80,27 @@ type Composer struct {
 // New constructs a new Composer from a Manifest. A network name must also be
 // provided; it will be created and cleaned up when Run and Teardown are
 // called.
-func New(manifest Manifest, network string) *Composer {
-	return &Composer{manifest: manifest, network: network}
+func New(manifest Manifest, options Options) *Composer {
+	return &Composer{manifest: manifest, options: options}
+}
+
+// Options is a generic type for options.
+type Options map[string]interface{}
+
+const (
+	optionCreateNetwork   = "create_network"
+	optionExistingNetwork = "existing_network"
+)
+
+// WithNewNetwork creates a network for use with the manifest.
+func WithNewNetwork(name string) Options {
+	return Options{optionCreateNetwork: name}
+}
+
+// WithExistingNetwork uses an existing network by ID (*not* name, since
+// network names are not unique!)
+func WithExistingNetwork(id string) Options {
+	return Options{optionExistingNetwork: id}
 }
 
 // HandleSignals handles SIGINT and SIGTERM to ensure that containers get
@@ -112,6 +131,13 @@ func (c *Composer) HandleSignals(forward bool) {
 	signal.Notify(sigChan, unix.SIGINT, unix.SIGTERM)
 }
 
+// GetNetworkID returns the network identifier of the created network from
+// Launch. If this composition is not launched yet, it will return an empty
+// string.
+func (c *Composer) GetNetworkID() string {
+	return c.netID
+}
+
 // Launch launches the manifest. On error containers are automatically cleaned
 // up.
 func (c *Composer) Launch(ctx context.Context) error {
@@ -120,16 +146,21 @@ func (c *Composer) Launch(ctx context.Context) error {
 		return err
 	}
 
-	net, err := client.CreateNetwork(dc.CreateNetworkOptions{
-		Name:    c.network,
-		Driver:  "bridge",
-		Context: ctx,
-	})
-	if err != nil {
-		return err
+	if c.options[optionCreateNetwork] != nil {
+		net, err := client.CreateNetwork(dc.CreateNetworkOptions{
+			Name:    c.options[optionCreateNetwork].(string),
+			Driver:  "bridge",
+			Context: ctx,
+		})
+		if err != nil {
+			return err
+		}
+		c.netID = net.ID
+	} else if c.options[optionExistingNetwork] != nil {
+		c.netID = c.options[optionExistingNetwork].(string)
+	} else {
+		return errors.New("compositions must have a network specified")
 	}
-
-	c.netID = net.ID
 
 	for _, cont := range c.manifest {
 		if !cont.LocalImage {
@@ -188,7 +219,7 @@ func (c *Composer) Launch(ctx context.Context) error {
 			NetworkingConfig: &dc.NetworkingConfig{
 				EndpointsConfig: map[string]*dc.EndpointConfig{
 					cont.Name: {
-						NetworkID: net.ID,
+						NetworkID: c.netID,
 						Aliases:   []string{cont.Name},
 					},
 				},
@@ -301,9 +332,11 @@ func (c *Composer) Teardown(ctx context.Context) error {
 		}
 	}
 
-	if err := client.RemoveNetwork(c.netID); err != nil {
-		log.Println(err)
-		errs = true
+	if c.options[optionCreateNetwork] != nil {
+		if err := client.RemoveNetwork(c.netID); err != nil {
+			log.Println(err)
+			errs = true
+		}
 	}
 
 	if errs {

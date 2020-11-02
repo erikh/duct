@@ -27,7 +27,7 @@ func TestBasic(t *testing.T) {
 				"duct.go": "/duct.go",
 			},
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
@@ -47,7 +47,7 @@ func TestBasic(t *testing.T) {
 				{"echo", "from post-command"},
 			},
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	if err := c.Launch(context.Background()); err == nil {
 		t.Fatal("launch succeeded; should not have")
@@ -69,7 +69,7 @@ func TestBasic(t *testing.T) {
 				{"echo", "from post-command"},
 			},
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestBasic(t *testing.T) {
 			Image:        "debian:latest",
 			PostCommands: [][]string{{"false"}},
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	t.Cleanup(func() {
 		c.Teardown(context.Background())
@@ -125,7 +125,7 @@ func TestNetwork(t *testing.T) {
 			PostCommands: [][]string{{"ping", "-c", "1", "target"}},
 			Image:        "debian:latest",
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	t.Cleanup(func() {
 		if err := c.Teardown(context.Background()); err != nil {
@@ -185,7 +185,7 @@ func TestAliveFunc(t *testing.T) {
 				}
 			},
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	t.Cleanup(func() {
 		if err := c.Teardown(context.Background()); err != nil {
@@ -206,7 +206,7 @@ func TestSignals(t *testing.T) {
 			Name:  "target",
 			Image: "nginx:latest",
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	c.HandleSignals(false)
 
@@ -258,7 +258,7 @@ func TestTeardown(t *testing.T) {
 			Image:   "debian:latest",
 			Command: []string{"sleep", "infinity"},
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	c2 := New(Manifest{
 		{
@@ -266,7 +266,7 @@ func TestTeardown(t *testing.T) {
 			Image:   "debian:latest",
 			Command: []string{"sleep", "infinity"},
 		},
-	}, "duct-test-network")
+	}, WithNewNetwork("duct-test-network"))
 
 	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
@@ -281,6 +281,57 @@ func TestTeardown(t *testing.T) {
 	}
 
 	if err := c.Teardown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWithExistingNetwork(t *testing.T) {
+	b := Builder{
+		"nc": {
+			Dockerfile: "testdata/Dockerfile.nc",
+			Context:    ".",
+		},
+	}
+
+	if err := b.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New(Manifest{
+		{
+			Name:       "target",
+			Command:    []string{"nc", "-l", "-k", "-p", "6000"},
+			Image:      "nc",
+			LocalImage: true,
+		}}, WithNewNetwork("duct-test-network"))
+
+	t.Cleanup(func() {
+		if err := c.Teardown(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	c2 := New(Manifest{
+		{
+			Name:         "aimer",
+			Command:      []string{"sleep", "infinity"},
+			PostCommands: [][]string{{"nc", "-z", "target", "6000"}},
+			Image:        "nc",
+			LocalImage:   true,
+		},
+	}, WithExistingNetwork(c.GetNetworkID()))
+
+	t.Cleanup(func() {
+		if err := c2.Teardown(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if err := c2.Launch(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
