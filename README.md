@@ -81,7 +81,7 @@ func TestStartGitea(t *testing.T) {
         11498: 3000,
       },
     },
-  }, "gitea-integration-test")
+  }, duct.WithNewNetwork("gitea-integration-test"))
 
   // Ctrl+C and SIGTERM will tear this down, and pass it up to the test suite
   c.HandleSignals(true)
@@ -128,7 +128,7 @@ c := New(Manifest{
     Image:      "test-image",
     LocalImage: true,
   },
-}, "duct-test-network")
+}, WithNewNetwork("duct-test-network"))
 
 if err := c.Launch(context.Background()); err != nil {
   t.Fatal(err)
