@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -156,12 +157,6 @@ func (c *Composer) GetNetworkID() string {
 	return c.netID
 }
 
-type nullWriter struct{}
-
-func (nw nullWriter) Write(p []byte) (n int, err error) {
-	return len(p), nil
-}
-
 // Launch launches the manifest. On error containers are automatically cleaned
 // up.
 func (c *Composer) Launch(ctx context.Context) error {
@@ -173,7 +168,7 @@ func (c *Composer) Launch(ctx context.Context) error {
 	if w, ok := c.options[optionLogWriter]; ok {
 		var writer io.Writer = w.(io.Writer)
 		if writer == nil {
-			writer = nullWriter{}
+			writer = ioutil.Discard
 		}
 		log.SetOutput(writer)
 	}
@@ -356,7 +351,7 @@ func (c *Composer) Teardown(ctx context.Context) error {
 
 			log.Printf("Removing container: [%s]", cont.Name)
 			if err := client.RemoveContainer(dc.RemoveContainerOptions{ID: cont.id, Force: true, Context: ctx}); err != nil {
-				log.Printf("Error shutting down continer: [%s] %v\n", cont.Name, err)
+				log.Printf("Error shutting down container: [%s] %v", cont.Name, err)
 				errs = true
 			}
 		} else {
