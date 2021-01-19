@@ -372,3 +372,36 @@ func TestLoggerOption(t *testing.T) {
 		t.Fatal("Didn't capture logs")
 	}
 }
+
+func TestWaitForExit(t *testing.T) {
+
+	c := New(Manifest{
+		{
+			Name:        "Exit",
+			Command:     []string{"sleep", "1"},
+			Image:       "debian:latest",
+			WaitForExit: true,
+		},
+	}, WithNewNetwork("duct-test-network"))
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Teardown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	c = New(Manifest{
+		{
+			Name:        "ExitBadly",
+			Command:     []string{"ls", "-123"},
+			Image:       "debian:latest",
+			WaitForExit: true,
+		},
+	}, WithNewNetwork("duct-test-network"))
+
+	if err := c.Launch(context.Background()); err == nil {
+		t.Fatal("Expected error due to bad exit code", err)
+	}
+}
