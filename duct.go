@@ -163,6 +163,8 @@ func (c *Composer) GetNetworkID() string {
 	return c.netID
 }
 
+var containerLogsTarget io.Writer = os.Stdout
+
 // Launch launches the manifest. On error containers are automatically cleaned
 // up.
 func (c *Composer) Launch(ctx context.Context) error {
@@ -291,6 +293,19 @@ func (c *Composer) Launch(ctx context.Context) error {
 			cont.exitCode = &code
 
 			if code != 0 {
+
+				log.Println("Logs from failing container:")
+				// if we have a non-zero code, dump the logs to stdout
+				if err := client.Logs(dc.LogsOptions{
+					Container:    cont.Name,
+					OutputStream: containerLogsTarget,
+					ErrorStream:  containerLogsTarget,
+					Stdout:       true,
+					Stderr:       true,
+				}); err != nil {
+					log.Printf("WARNING: Failed to get logs for [%s]: %v", cont.Name, err)
+				}
+
 				c.Teardown(ctx)
 				return fmt.Errorf("Container %s had non-zero exit code %d", cont.Name, *cont.exitCode)
 			}
