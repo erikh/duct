@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -80,8 +82,18 @@ type Composer struct {
 // New constructs a new Composer from a Manifest. A network name must also be
 // provided; it will be created and cleaned up when Run and Teardown are
 // called.
-func New(manifest Manifest, options Options) *Composer {
-	return &Composer{manifest: manifest, options: options}
+func New(manifest Manifest, options ...Options) *Composer {
+
+	// Gather options
+	opts := Options{}
+
+	for _, o := range options {
+		for k, v := range o {
+			opts[k] = v
+		}
+	}
+
+	return &Composer{manifest: manifest, options: opts}
 }
 
 // Options is a generic type for options.
@@ -90,6 +102,7 @@ type Options map[string]interface{}
 const (
 	optionCreateNetwork   = "create_network"
 	optionExistingNetwork = "existing_network"
+	optionLogWriter       = "log_writer"
 )
 
 // WithNewNetwork creates a network for use with the manifest.
@@ -101,6 +114,12 @@ func WithNewNetwork(name string) Options {
 // network names are not unique!)
 func WithExistingNetwork(id string) Options {
 	return Options{optionExistingNetwork: id}
+}
+
+// WithLogWriter routes all logging output to the specified writer, or to none
+// if nil is pecified
+func WithLogWriter(writer io.Writer) Options {
+	return Options{optionLogWriter: writer}
 }
 
 // HandleSignals handles SIGINT and SIGTERM to ensure that containers get
@@ -144,6 +163,14 @@ func (c *Composer) Launch(ctx context.Context) error {
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
 		return err
+	}
+
+	if w, ok := c.options[optionLogWriter]; ok {
+		var writer io.Writer = w.(io.Writer)
+		if writer == nil {
+			writer = ioutil.Discard
+		}
+		log.SetOutput(writer)
 	}
 
 	if c.options[optionCreateNetwork] != nil {
@@ -324,7 +351,7 @@ func (c *Composer) Teardown(ctx context.Context) error {
 
 			log.Printf("Removing container: [%s]", cont.Name)
 			if err := client.RemoveContainer(dc.RemoveContainerOptions{ID: cont.id, Force: true, Context: ctx}); err != nil {
-				log.Println(err)
+				log.Printf("Error shutting down container: [%s] %v", cont.Name, err)
 				errs = true
 			}
 		} else {

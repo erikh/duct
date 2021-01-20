@@ -1,6 +1,7 @@
 package duct
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"net"
@@ -333,5 +334,41 @@ func TestWithExistingNetwork(t *testing.T) {
 
 	if err := c2.Launch(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLoggerOption(t *testing.T) {
+
+	buffer := &bytes.Buffer{}
+
+	c := New(Manifest{
+		{
+			Name:    "sleep",
+			Command: []string{"sleep", "1"},
+			Image:   "debian:latest",
+			PostCommands: [][]string{
+				{"echo", "from post-command"},
+				{"head", "-1", "/duct.go"},
+			},
+			BindMounts: map[string]string{
+				"duct.go": "/duct.go",
+			},
+		},
+	},
+		WithNewNetwork("duct-net"), WithLogWriter(buffer),
+	)
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Teardown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	logs := buffer.String()
+	t.Log(logs)
+	if len(logs) == 0 {
+		t.Fatal("Didn't capture logs")
 	}
 }
