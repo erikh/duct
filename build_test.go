@@ -28,11 +28,11 @@ func TestBuild(t *testing.T) {
 		},
 	}, WithNewNetwork("duct-test-network"))
 
-	if err := c.Launch(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+	t.Cleanup(func() {
+		c.Teardown(context.Background())
+	})
 
-	if err := c.Teardown(context.Background()); err != nil {
+	if err := c.Launch(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
