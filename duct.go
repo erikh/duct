@@ -163,6 +163,7 @@ func (c *Composer) GetNetworkID() string {
 	return c.netID
 }
 
+// internal variable for testing and capturing log dumping from containers
 var containerLogsTarget io.Writer = os.Stdout
 
 // Launch launches the manifest. On error containers are automatically cleaned
