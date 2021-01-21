@@ -1,12 +1,7 @@
 ---
 mountpoint: "/code"
 runs:
-  test-latest:
-    command: [ 'go', 'test', '-v', './...' ]
-    image: 'golang:latest'
   test-1.15:
-    command: [ 'go', 'test', '-v', './...' ]
-    image: 'golang:1.15'
-  test-1.14:
-    command: [ 'go', 'test', '-v', './...' ]
-    image: 'golang:1.14'
+    privileged: true
+    command: [ 'sh', 'test.sh' ]
+    image: 'quay.io/erikh/duct-test'
