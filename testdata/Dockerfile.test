@@ -1,2 +1,2 @@
-FROM alpine
+FROM quay.io/dockerlibrary/alpine
 CMD /bin/true
