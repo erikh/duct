@@ -338,7 +338,6 @@ func TestWithExistingNetwork(t *testing.T) {
 }
 
 func TestLoggerOption(t *testing.T) {
-
 	buffer := &bytes.Buffer{}
 
 	c := New(Manifest{
@@ -377,7 +376,7 @@ func TestWaitForExit(t *testing.T) {
 	c := New(Manifest{
 		{
 			Name:        "Exit",
-			Command:     []string{"sleep", "1"},
+			Command:     []string{"sh", "-c", "sleep 1"},
 			Image:       "debian:latest",
 			WaitForExit: true,
 		},
@@ -394,26 +393,13 @@ func TestWaitForExit(t *testing.T) {
 	c = New(Manifest{
 		{
 			Name:        "ExitBadly",
-			Command:     []string{"ls", "-123"},
+			Command:     []string{"sh", "-c", "exit 1"},
 			Image:       "debian:latest",
 			WaitForExit: true,
 		},
 	}, WithNewNetwork("duct-test-network"))
 
-	oldTarget := containerLogsTarget
-	defer func() {
-		containerLogsTarget = oldTarget
-	}()
-
-	buffer := &bytes.Buffer{}
-	containerLogsTarget = buffer
-
 	if err := c.Launch(context.Background()); err == nil {
 		t.Fatal("Expected error due to bad exit code, but none occurred")
-	}
-
-	logs := buffer.String()
-	if len(logs) == 0 {
-		t.Fatal("Didn't capture logs")
 	}
 }
