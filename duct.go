@@ -64,7 +64,13 @@ type Container struct {
 	// forward the port on 0.0.0.0 automatically.
 	PortForwards map[int]int
 
-	id string // the container id
+	// WaitForExit runs this container until it exits. Helpful for scenarios where a container operates
+	// on another (example: initialize database data), but does not expose a service.
+	WaitForExit bool
+
+	id       string // the container id
+	exitCode *int   // container exit code
+
 }
 
 // Manifest is the containers to run, in order. Passed to New().
@@ -156,6 +162,9 @@ func (c *Composer) HandleSignals(forward bool) {
 func (c *Composer) GetNetworkID() string {
 	return c.netID
 }
+
+// internal variable for testing and capturing log dumping from containers
+var containerLogsTarget io.Writer = os.Stdout
 
 // Launch launches the manifest. On error containers are automatically cleaned
 // up.
@@ -273,7 +282,35 @@ func (c *Composer) Launch(ctx context.Context) error {
 			time.Sleep(cont.BootWait)
 		}
 
-		if cont.AliveFunc != nil {
+		if cont.WaitForExit {
+
+			code, err := client.WaitContainer(cont.id)
+
+			if err != nil {
+				c.Teardown(ctx)
+				return err
+			}
+
+			cont.exitCode = &code
+
+			if code != 0 {
+
+				log.Println("Logs from failing container:")
+				// if we have a non-zero code, dump the logs to stdout
+				if err := client.Logs(dc.LogsOptions{
+					Container:    cont.Name,
+					OutputStream: containerLogsTarget,
+					ErrorStream:  containerLogsTarget,
+					Stdout:       true,
+					Stderr:       true,
+				}); err != nil {
+					log.Printf("WARNING: Failed to get logs for [%s]: %v", cont.Name, err)
+				}
+
+				c.Teardown(ctx)
+				return fmt.Errorf("Container %s had non-zero exit code %d", cont.Name, *cont.exitCode)
+			}
+		} else if cont.AliveFunc != nil {
 			log.Printf("Running aliveFunc for %v", cont.Name)
 			if err := cont.AliveFunc(ctx, client, cont.id); err != nil {
 				c.Teardown(ctx)
@@ -328,7 +365,6 @@ func (c *Composer) Teardown(ctx context.Context) error {
 	if c.sigCancel != nil {
 		c.sigCancel()
 	}
-
 	client, err := dc.NewClientFromEnv()
 	if err != nil {
 		return err
@@ -338,15 +374,24 @@ func (c *Composer) Teardown(ctx context.Context) error {
 
 	for _, cont := range c.manifest {
 		if cont.id != "" {
-			log.Printf("Killing container: [%s]", cont.Name)
-			err := client.KillContainer(dc.KillContainerOptions{
-				ID:      cont.id,
-				Signal:  dc.SIGKILL,
-				Context: ctx,
-			})
-			if err != nil {
-				log.Println(err)
-				errs = true
+
+			if cont.WaitForExit {
+				// ensure the container actually exited cleanly
+				if cont.exitCode == nil {
+					log.Printf("Container expected to exit but did not: [%s]", cont.Name)
+					errs = true
+				}
+			} else {
+				log.Printf("Killing container: [%s]", cont.Name)
+				err := client.KillContainer(dc.KillContainerOptions{
+					ID:      cont.id,
+					Signal:  dc.SIGKILL,
+					Context: ctx,
+				})
+				if err != nil {
+					log.Println(err)
+					errs = true
+				}
 			}
 
 			log.Printf("Removing container: [%s]", cont.Name)
@@ -354,6 +399,7 @@ func (c *Composer) Teardown(ctx context.Context) error {
 				log.Printf("Error shutting down container: [%s] %v", cont.Name, err)
 				errs = true
 			}
+
 		} else {
 			log.Printf("Skipping unstarted container: [%s]", cont.Name)
 		}
