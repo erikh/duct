@@ -434,3 +434,38 @@ func TestNetworkSubnet(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestExtraHosts(t *testing.T) {
+	b := Builder{
+		"ping": {
+			Dockerfile: "testdata/Dockerfile.ping",
+			Context:    ".",
+		},
+	}
+
+	if err := b.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New(Manifest{
+		{
+			Name:        "ping",
+			Command:     []string{"sh", "-c", "ping -c 1 example.org"},
+			Image:       "ping",
+			LocalImage:  true,
+			WaitForExit: true,
+			IPv4:        "10.0.0.2",
+			ExtraHosts: map[string][]string{
+				"10.0.0.2": {"example.org"},
+			},
+		},
+	}, WithNewNetworkAndSubnet("duct-test-network", "10.0.0.0/24"))
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Teardown(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}

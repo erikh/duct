@@ -74,6 +74,10 @@ type Container struct {
 	// IPv6 attempts to set IPv6 addresses for the container.
 	IPv6 string
 
+	// ExtraHosts is a map of IP -> names in /etc/hosts. It does this by
+	// constructing an /etc/hosts file and bind mounting it in.
+	ExtraHosts map[string][]string
+
 	id       string // the container id
 	exitCode *int   // container exit code
 
@@ -234,6 +238,30 @@ func (c *Composer) Launch(ctx context.Context) error {
 			}
 		}
 
+		var hostsfile string
+
+		if len(cont.ExtraHosts) != 0 {
+			f, err := os.CreateTemp("", "duct-hosts-XXXXXX")
+			if err != nil {
+				return err
+			}
+
+			defer func(f *os.File) {
+				f.Close()
+				os.Remove(f.Name())
+			}(f)
+
+			for ip, hostnames := range cont.ExtraHosts {
+				_, err := fmt.Fprintf(f, "%s %s\n", ip, strings.Join(hostnames, " "))
+				if err != nil {
+					return err
+				}
+			}
+
+			f.Close()
+			hostsfile = f.Name()
+		}
+
 		mounts := []dc.HostMount{}
 		for host, target := range cont.BindMounts {
 			if !filepath.IsAbs(host) {
@@ -248,6 +276,14 @@ func (c *Composer) Launch(ctx context.Context) error {
 				Source: host,
 				Type:   "bind",
 				Target: target,
+			})
+		}
+
+		if hostsfile != "" {
+			mounts = append(mounts, dc.HostMount{
+				Source: hostsfile,
+				Type:   "bind",
+				Target: "/etc/hosts",
 			})
 		}
 
