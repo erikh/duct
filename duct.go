@@ -68,6 +68,12 @@ type Container struct {
 	// on another (example: initialize database data), but does not expose a service.
 	WaitForExit bool
 
+	// IPv4 attempts to set IPv4 addresses for the container.
+	IPv4 string
+
+	// IPv6 attempts to set IPv6 addresses for the container.
+	IPv6 string
+
 	id       string // the container id
 	exitCode *int   // container exit code
 
@@ -106,14 +112,20 @@ func New(manifest Manifest, options ...Options) *Composer {
 type Options map[string]interface{}
 
 const (
-	optionCreateNetwork   = "create_network"
-	optionExistingNetwork = "existing_network"
-	optionLogWriter       = "log_writer"
+	optionCreateNetwork       = "create_network"
+	optionCreateNetworkSubnet = "create_network_subnet"
+	optionExistingNetwork     = "existing_network"
+	optionLogWriter           = "log_writer"
 )
 
 // WithNewNetwork creates a network for use with the manifest.
 func WithNewNetwork(name string) Options {
 	return Options{optionCreateNetwork: name}
+}
+
+// WithNewNetwork creates a network for use with the manifest.
+func WithNewNetworkAndSubnet(name, subnet string) Options {
+	return Options{optionCreateNetwork: name, optionCreateNetworkSubnet: subnet}
 }
 
 // WithExistingNetwork uses an existing network by ID (*not* name, since
@@ -183,11 +195,25 @@ func (c *Composer) Launch(ctx context.Context) error {
 	}
 
 	if c.options[optionCreateNetwork] != nil {
+		var ipam *dc.IPAMOptions
+
+		if subnet, ok := c.options[optionCreateNetworkSubnet]; ok {
+			ipam = &dc.IPAMOptions{
+				Config: []dc.IPAMConfig{
+					{
+						Subnet: subnet.(string),
+					},
+				},
+			}
+		}
+
 		net, err := client.CreateNetwork(dc.CreateNetworkOptions{
 			Name:    c.options[optionCreateNetwork].(string),
 			Driver:  "bridge",
 			Context: ctx,
+			IPAM:    ipam,
 		})
+
 		if err != nil {
 			return err
 		}
@@ -255,8 +281,10 @@ func (c *Composer) Launch(ctx context.Context) error {
 			NetworkingConfig: &dc.NetworkingConfig{
 				EndpointsConfig: map[string]*dc.EndpointConfig{
 					cont.Name: {
-						NetworkID: c.netID,
-						Aliases:   []string{cont.Name},
+						NetworkID:         c.netID,
+						Aliases:           []string{cont.Name},
+						IPAddress:         cont.IPv4,
+						GlobalIPv6Address: cont.IPv6,
 					},
 				},
 			},

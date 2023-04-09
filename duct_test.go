@@ -372,7 +372,6 @@ func TestLoggerOption(t *testing.T) {
 }
 
 func TestWaitForExit(t *testing.T) {
-
 	c := New(Manifest{
 		{
 			Name:        "Exit",
@@ -401,5 +400,37 @@ func TestWaitForExit(t *testing.T) {
 
 	if err := c.Launch(context.Background()); err == nil {
 		t.Fatal("Expected error due to bad exit code, but none occurred")
+	}
+}
+
+func TestNetworkSubnet(t *testing.T) {
+	b := Builder{
+		"ping": {
+			Dockerfile: "testdata/Dockerfile.ping",
+			Context:    ".",
+		},
+	}
+
+	if err := b.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	c := New(Manifest{
+		{
+			Name:        "ping",
+			Command:     []string{"sh", "-c", "ping -c 1 10.0.0.2"},
+			Image:       "ping",
+			LocalImage:  true,
+			WaitForExit: true,
+			IPv4:        "10.0.0.2",
+		},
+	}, WithNewNetworkAndSubnet("duct-test-network", "10.0.0.0/24"))
+
+	if err := c.Launch(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Teardown(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }
