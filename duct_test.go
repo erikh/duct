@@ -19,7 +19,7 @@ func TestBasic(t *testing.T) {
 		{
 			Name:    "sleep",
 			Command: []string{"sleep", "1"},
-			Image:   "quay.io/dockerlibrary/debian:latest",
+			Image:   "debian:latest",
 			PostCommands: [][]string{
 				{"echo", "from post-command"},
 				{"head", "-1", "/duct.go"},
@@ -42,7 +42,7 @@ func TestBasic(t *testing.T) {
 		{
 			Name:     "early-terminator",
 			Command:  []string{"sleep", "1"},
-			Image:    "quay.io/dockerlibrary/debian:latest",
+			Image:    "debian:latest",
 			BootWait: 2 * time.Second,
 			PostCommands: [][]string{
 				{"echo", "from post-command"},
@@ -64,7 +64,7 @@ func TestBasic(t *testing.T) {
 		{
 			Name:     "early-terminator",
 			Command:  []string{"sleep", "3"},
-			Image:    "quay.io/dockerlibrary/debian:latest",
+			Image:    "debian:latest",
 			BootWait: 2 * time.Second,
 			PostCommands: [][]string{
 				{"echo", "from post-command"},
@@ -84,7 +84,7 @@ func TestBasic(t *testing.T) {
 		{
 			Name:         "post-command-exit",
 			Command:      []string{"sleep", "infinity"},
-			Image:        "quay.io/dockerlibrary/debian:latest",
+			Image:        "debian:latest",
 			PostCommands: [][]string{{"false"}},
 		},
 	}, WithNewNetwork("duct-test-network"))
@@ -124,7 +124,8 @@ func TestNetwork(t *testing.T) {
 			Name:         "pinger",
 			Command:      []string{"sleep", "infinity"},
 			PostCommands: [][]string{{"ping", "-c", "1", "target"}},
-			Image:        "quay.io/dockerlibrary/debian:latest",
+			Image:        "nc",
+			LocalImage:   true,
 		},
 	}, WithNewNetwork("duct-test-network"))
 
@@ -149,7 +150,7 @@ func TestAliveFunc(t *testing.T) {
 	c := New(Manifest{
 		{
 			Name:  "target",
-			Image: "quay.io/dockerlibrary/nginx:latest",
+			Image: "nginx:latest",
 			AliveFunc: func(ctx context.Context, client *dc.Client, id string) error {
 				for {
 					conn, err := net.Dial("tcp", "localhost:6000")
@@ -169,10 +170,10 @@ func TestAliveFunc(t *testing.T) {
 		{
 			Name:    "target-no-port",
 			Command: []string{"sleep", "infinity"},
-			Image:   "quay.io/dockerlibrary/debian:latest",
+			Image:   "debian:latest",
 			AliveFunc: func(ctx context.Context, client *dc.Client, id string) error {
 				for {
-					container, err := client.InspectContainer(id)
+					container, err := client.InspectContainerWithOptions(dc.InspectContainerOptions{ID: id})
 					if err != nil {
 						log.Printf("Error inspecting container: %v", err)
 						continue
@@ -205,7 +206,7 @@ func TestSignals(t *testing.T) {
 	c := New(Manifest{
 		{
 			Name:  "target",
-			Image: "quay.io/dockerlibrary/nginx:latest",
+			Image: "nginx:latest",
 		},
 	}, WithNewNetwork("duct-test-network"))
 
@@ -256,7 +257,7 @@ func TestTeardown(t *testing.T) {
 	c := New(Manifest{
 		{
 			Name:    "target",
-			Image:   "quay.io/dockerlibrary/debian:latest",
+			Image:   "debian:latest",
 			Command: []string{"sleep", "infinity"},
 		},
 	}, WithNewNetwork("duct-test-network"))
@@ -264,7 +265,7 @@ func TestTeardown(t *testing.T) {
 	c2 := New(Manifest{
 		{
 			Name:    "target",
-			Image:   "quay.io/dockerlibrary/debian:latest",
+			Image:   "debian:latest",
 			Command: []string{"sleep", "infinity"},
 		},
 	}, WithNewNetwork("duct-test-network"))
@@ -344,7 +345,7 @@ func TestLoggerOption(t *testing.T) {
 		{
 			Name:    "sleep",
 			Command: []string{"sleep", "1"},
-			Image:   "quay.io/dockerlibrary/debian:latest",
+			Image:   "debian:latest",
 			PostCommands: [][]string{
 				{"echo", "from post-command"},
 				{"head", "-1", "/duct.go"},

@@ -1,3 +1,3 @@
-FROM quay.io/dockerlibrary/debian
+FROM debian:latest
 
-RUN apt-get update && apt-get install netcat-openbsd -y
+RUN apt-get update && apt-get install netcat-openbsd inetutils-ping -y

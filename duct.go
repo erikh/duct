@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	dc "github.com/fsouza/go-dockerclient"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -99,6 +99,8 @@ type Composer struct {
 // provided; it will be created and cleaned up when Run and Teardown are
 // called.
 func New(manifest Manifest, options ...Options) *Composer {
+	logger := logrus.StandardLogger()
+	logger.SetLevel(logrus.FatalLevel)
 
 	// Gather options
 	opts := Options{}
@@ -193,7 +195,7 @@ func (c *Composer) Launch(ctx context.Context) error {
 	if w, ok := c.options[optionLogWriter]; ok {
 		var writer io.Writer = w.(io.Writer)
 		if writer == nil {
-			writer = ioutil.Discard
+			writer = io.Discard
 		}
 		log.SetOutput(writer)
 	}

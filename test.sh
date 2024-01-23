@@ -1,6 +1,6 @@
 #!/bin/sh
 
-nohup dockerd -s vfs &
+nohup dockerd -l fatal -s vfs &
 
 machine="amd64"
 
