@@ -11,7 +11,7 @@ case "$(uname -m)" in
 esac
   
 
-url=https://go.dev/dl/go${GOLANG_VERSION:-1.21.6}.linux-${machine}.tar.gz 
+url=https://go.dev/dl/go${GOLANG_VERSION:-1.24.0}.linux-${machine}.tar.gz 
 echo "Fetching golang from $url"
 curl -sSL "$url" | tar -xz -C /usr/local
 
