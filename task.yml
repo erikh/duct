@@ -1,7 +1,0 @@
----
-mountpoint: "/code"
-runs:
-  test-1.15:
-    privileged: true
-    command: [ 'sh', 'test.sh' ]
-    image: 'quay.io/erikh/duct-test'
